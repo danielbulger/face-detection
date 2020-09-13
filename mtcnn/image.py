@@ -35,14 +35,14 @@ def _scale_image(image: Image, scale: float) -> Image:
 
 
 def get_image_tensors(file: str, scale_factor: float, min_size: int) -> List[Tensor]:
-    test = Image.open(file).convert('RGB')
+    image = Image.open(file).convert('RGB')
 
-    scales = _get_image_scales(scale_factor, min_size, test.width, test.height)
+    scales = _get_image_scales(scale_factor, min_size, image.width, image.height)
 
     tensors = []
 
     for scale in scales:
-        tensors.append(to_tensor(_scale_image(test, scale)))
+        tensors.append(to_tensor(_scale_image(image, scale)))
 
     return tensors
 
