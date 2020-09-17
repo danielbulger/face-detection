@@ -1,10 +1,14 @@
+import torch
 import mtcnn.image
-import mtcnn.pnet
+from mtcnn import RNet, ONet, PNet
 
-model = mtcnn.pnet.PNet()
+pnet = PNet()
+rnet = RNet()
+onet = ONet()
 
 # Parameters taken from https://arxiv.org/pdf/1910.06261.pdf
 tensors = mtcnn.image.get_image_tensors('data/image.jpg', 0.709, 20)
 
-for tensor in tensors:
-    print(model.forward(tensor))
+pnet.forward(tensors[0])
+rnet.forward(torch.zeros(1, 3, 24, 24))
+onet.forward(torch.zeros(1, 3, 48, 48))

@@ -7,10 +7,10 @@ class PNet(Module):
 
     def __init__(self):
         super(PNet, self).__init__()
-        self.model = Sequential(OrderedDict([
+        self.features = Sequential(OrderedDict([
             ('conv1', Conv2d(in_channels=3, out_channels=10, kernel_size=3, stride=1)),
             ('relu1', ReLU()),
-            ('pool1', MaxPool2d(kernel_size=2, stride=2)),
+            ('pool1', MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)),
 
             ('conv2', Conv2d(in_channels=10, out_channels=16, kernel_size=3, stride=1)),
             ('relu2', ReLU()),
@@ -21,7 +21,7 @@ class PNet(Module):
 
         self.classification = Sequential(OrderedDict([
             ('conv1', Conv2d(in_channels=32, out_channels=2, kernel_size=1, stride=1)),
-            ('softmax', Softmax(dim=3))
+            ('softmax', Softmax(dim=1))
         ]))
 
         self.regression = Sequential(OrderedDict([
@@ -29,7 +29,7 @@ class PNet(Module):
         ]))
 
     def forward(self, x):
-        x = self.model(x)
+        x = self.features(x)
 
         return {
             'output': x,
