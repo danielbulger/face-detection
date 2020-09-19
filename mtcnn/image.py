@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 
 import numpy as np
 from PIL import Image
@@ -34,7 +34,7 @@ def _scale_image(image: Image, scale: float) -> Image:
     return scaled_image
 
 
-def get_image_tensors(file: str, scale_factor: float, min_size: int) -> List[Tensor]:
+def get_image_tensors(file: str, scale_factor: float, min_size: int) -> Tuple[List[Tensor], List[float]]:
     image = Image.open(file).convert('RGB')
 
     scales = _get_image_scales(scale_factor, min_size, image.width, image.height)
@@ -44,7 +44,7 @@ def get_image_tensors(file: str, scale_factor: float, min_size: int) -> List[Ten
     for scale in scales:
         tensors.append(to_tensor(_scale_image(image, scale)))
 
-    return tensors
+    return tensors, scales
 
 
 def to_tensor(image: Image) -> Tensor:
