@@ -93,7 +93,7 @@ class MTCNN:
 
         classification = output['classification'].squeeze().data.numpy()
         regression = output['regression'].squeeze().data.numpy()
-        landmarks = output['regression'].squeeze().data.numpy()
+        landmarks = output['landmarks'].squeeze().data.numpy()
 
         pick = np.where(classification[:, 1] > self.thresholds[2])
         bboxes = bboxes[pick]
