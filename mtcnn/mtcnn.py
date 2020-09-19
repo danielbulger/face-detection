@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional, Dict
 
 import torch
 import numpy as np
@@ -21,15 +21,18 @@ class MTCNN:
         self.onet = ONet()
 
     def forward(self, image: Image):
+
         bboxes = self.stage1(image)
-        if len(bboxes) == 0:
+        if bboxes is None:
             return None
+
         bboxes = self.stage2(image, bboxes)
-        if len(bboxes) == 0:
+        if bboxes is None:
             return None
+
         return self.stage3(image, bboxes)
 
-    def stage1(self, image: Image):
+    def stage1(self, image: Image) -> Optional[np.ndarray]:
         tensors, scales = mtcnn.image.get_image_tensors(image, 0.709, 20)
 
         bounding_boxes = []
@@ -52,9 +55,9 @@ class MTCNN:
         if len(bounding_boxes) > 0:
             return mtcnn.box.process_bboxes(np.vstack(bounding_boxes))
 
-        return []
+        return None
 
-    def stage2(self, img: Image, bboxes: np.ndarray):
+    def stage2(self, img: Image, bboxes: np.ndarray) -> Optional[np.ndarray]:
         image_boxes = mtcnn.image.extract_image_box(img, bboxes, 24)
 
         image_boxes = torch.from_numpy(image_boxes)
@@ -68,6 +71,10 @@ class MTCNN:
         pick = np.where(classification[:, 1] > self.thresholds[1])[0]
         # Filter the bounding boxes by the new classification
         bboxes = bboxes[pick]
+
+        if bboxes.size == 0:
+            return None
+
         # Update the existing probabilities with the latest from the refine network
         bboxes[:, 4] = classification[pick, 1].reshape((-1,))
         # Filter out any predicted regressions that did not meet the threshold
@@ -84,7 +91,7 @@ class MTCNN:
 
         return bboxes
 
-    def stage3(self, image: Image, bboxes: np.ndarray):
+    def stage3(self, image: Image, bboxes: np.ndarray) -> Optional[Dict[str, np.ndarray]]:
         image_boxes = mtcnn.image.extract_image_box(image, bboxes, 48)
 
         image_boxes = torch.from_numpy(image_boxes)
@@ -97,6 +104,10 @@ class MTCNN:
 
         pick = np.where(classification[:, 1] > self.thresholds[2])
         bboxes = bboxes[pick]
+
+        if bboxes.size == 0:
+            return None
+
         # Update the probabilities with the latest from the ONet
         bboxes[:, 4] = classification[pick, 1].reshape((-1,))
         # Filter the regression by the ones that meet the threshold
@@ -115,8 +126,10 @@ class MTCNN:
         bboxes = mtcnn.box.translate_bbox(bboxes, regression)
         pick = mtcnn.box.nms(bboxes, 0.5)
 
+        bboxes = bboxes[pick]
+
         # Convert the bounding boxes to a square
-        bboxes = mtcnn.box.convert_to_square(bboxes[pick])
+        bboxes = mtcnn.box.convert_to_square(bboxes)
         # Round the bounding boxes to an integer.
         bboxes[:, :4] = np.round(bboxes[:, :4])
 

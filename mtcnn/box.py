@@ -7,8 +7,10 @@ import numpy as np
 
 
 def process_bboxes(bounding_boxes: np.ndarray) -> np.ndarray:
+    pick = nms(bounding_boxes[:, :5], 0.1)
     # First find the NMS of all the scaled bounding boxes
-    bounding_boxes = bounding_boxes[nms(bounding_boxes[:, :5], 0.1)]
+    bounding_boxes = bounding_boxes[pick]
+
     # Correct/translate the positions of the bounding box
     bounding_boxes = translate_bbox(bounding_boxes[:, :5], bounding_boxes[:, 5:])
     # Convert the bounding boxes into a square form
