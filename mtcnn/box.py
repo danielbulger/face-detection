@@ -12,7 +12,7 @@ def process_bboxes(bounding_boxes: np.ndarray) -> np.ndarray:
     # Correct/translate the positions of the bounding box
     bounding_boxes = translate_bbox(bounding_boxes[:, :5], bounding_boxes[:, 5:])
     # Convert the bounding boxes into a square form
-    bounding_boxes = convert_to_square(bounding_boxes[:, :4])
+    bounding_boxes = convert_to_square(bounding_boxes)
     # Round the bounding boxes as integers
     bounding_boxes[:, :4] = np.round(bounding_boxes[:, :4])
     return bounding_boxes
@@ -105,13 +105,52 @@ def generate_bbox(probability: np.ndarray, regression: np.ndarray, scale: float,
 
 
 def convert_to_square(bboxes: np.ndarray) -> np.ndarray:
+
     squares = np.zeros_like(bboxes)
     x1, y1, x2, y2 = [bboxes[:, i] for i in range(4)]
-    h = y2 - y1 + 1.0
-    w = x2 - x1 + 1.0
-    max_side = np.maximum(h, w)
-    squares[:, 0] = x1 + w * 0.5 - max_side * 0.5
-    squares[:, 1] = y1 + h * 0.5 - max_side * 0.5
+
+    width = x2 - x1 + 1.0
+    height = y2 - y1 + 1.0
+
+    max_side = np.maximum(height, width)
+
+    squares[:, 0] = x1 + width * 0.5 - max_side * 0.5
+    squares[:, 1] = y1 + height * 0.5 - max_side * 0.5
     squares[:, 2] = squares[:, 0] + max_side - 1.0
     squares[:, 3] = squares[:, 1] + max_side - 1.0
+
     return squares
+
+
+def crop_bboxes(bboxes: np.ndarray, width: int, height: int) -> List:
+    x1, y1, x2, y2 = [bboxes[:, i] for i in range(4)]
+
+    w = x2 - x1 + 1.0
+    h = y2 - y1 + 1.0
+
+    x, y, ex, ey = x1, y1, x2, y2
+
+    num_boxes = len(bboxes)
+
+    dx, dy = np.zeros((num_boxes,)), np.zeros((num_boxes,))
+
+    end_x = w.copy() - 1
+    end_y = h.copy() - 1
+
+    indices = np.where(ex > width - 1)[0]
+    end_x[indices] = w[indices] + width - 2.0 - ex[indices]
+    ex[indices] = width - 1.0
+
+    indices = np.where(ey > height - 1)[0]
+    end_y[indices] = h[indices] + height - 2.0 - ey[indices]
+    ey[indices] = height - 1.0
+
+    indices = np.where(x < 0.0)[0]
+    dx[indices] = -x[indices]
+    x[indices] = 0
+
+    indices = np.where(y < 0.0)[0]
+    dy[indices] = -y[indices]
+    y[indices] = 0
+
+    return [i.astype('int32') for i in [dy, end_y, dx, end_x, y, ey, x, ex, w, h]]

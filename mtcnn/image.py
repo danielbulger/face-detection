@@ -1,9 +1,10 @@
 from typing import List, Tuple
 
 import numpy as np
-from PIL import Image
 import torchvision.transforms as transforms
+from PIL import Image
 from torch import Tensor
+from .box import crop_bboxes
 
 _num_scales = 12
 
@@ -34,8 +35,8 @@ def _scale_image(image: Image, scale: float) -> Image:
     return scaled_image
 
 
-def get_image_tensors(file: str, scale_factor: float, min_size: int) -> Tuple[List[Tensor], List[float]]:
-    image = Image.open(file).convert('RGB')
+def get_image_tensors(image: Image, scale_factor: float, min_size: int) -> Tuple[List[Tensor], List[float]]:
+    image = image.convert('RGB')
 
     scales = _get_image_scales(scale_factor, min_size, image.width, image.height)
 
@@ -60,3 +61,42 @@ def to_tensor(image: Image) -> Tensor:
 
     # No batches for now
     return tensor.unsqueeze(0)
+
+
+def extract_image_box(image: Image, bboxes: np.ndarray, size: int) -> np.ndarray:
+
+    num_boxes = len(bboxes)
+
+    width, height = image.size
+
+    [dy, edy, dx, edx, y, ey, x, ex, w, h] = crop_bboxes(bboxes, width, height)
+
+    img_boxes = np.zeros((num_boxes, 3, size, size), 'float32')
+
+    for i in range(num_boxes):
+        box = np.zeros((h[i], w[i], 3), 'uint8')
+
+        array = np.asarray(image, 'uint8')
+
+        box[dy[i]: edy[i] + 1, dx[i]: edx[i] + 1, :] = array[y[i]: ey[i] + 1, x[i]: ex[i] + 1, :]
+
+        box = Image.fromarray(box)
+        box = box.resize((size, size), Image.BILINEAR)
+        box = np.asarray(box, 'float32')
+
+        img_boxes[i, :, :, :] = _ndarray_to_image(box)
+
+    return img_boxes
+
+
+def _ndarray_to_image(array: np.ndarray):
+    # Convert from [h, w, c] to [c, w, h]
+    array = array.transpose((2, 0, 1))
+
+    # Convert from [c, w, h] to [1, c, w, h]
+    array = np.expand_dims(array, 0)
+
+    # Normalise the pixel data
+    array = (array - 127.5) * 0.0078125
+
+    return array
