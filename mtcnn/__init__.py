@@ -1,2 +1,1 @@
-
-from .network import PNet, ONet, RNet
+from .mtcnn import MTCNN
