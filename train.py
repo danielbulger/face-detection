@@ -68,6 +68,52 @@ def stage2(image: Image, bboxes: np.ndarray, threshold: float):
     return bboxes
 
 
+def stage3(image: Image, bboxes: np.ndarray, threshold: float):
+    image_boxes = mtcnn.image.extract_image_box(image, bboxes, 48)
+
+    image_boxes = torch.from_numpy(image_boxes)
+
+    output = onet(image_boxes)
+
+    classification = output['classification'].squeeze().data.numpy()
+    regression = output['regression'].squeeze().data.numpy()
+    landmarks = output['regression'].squeeze().data.numpy()
+
+    pick = np.where(classification[:, 1] > threshold)
+    bboxes = bboxes[pick]
+    # Update the probabilities with the latest from the ONet
+    bboxes[:, 4] = classification[pick, 1].reshape((-1,))
+    # Filter the regression by the ones that meet the threshold
+    regression = regression[pick]
+    # Filter the landmarks by the ones that meet the threshold
+    landmarks = landmarks[pick]
+
+    # Now we calculate the landmark positions
+    x, y = bboxes[:, 0], bboxes[:, 1]
+    width = bboxes[:, 2] - x + 1
+    height = bboxes[:, 3] - y + 1
+
+    landmarks[:, :5] = np.expand_dims(x, 1) + np.expand_dims(width, 1) * landmarks[:, :5]
+    landmarks[:, 5:10] = np.expand_dims(y, 1) + np.expand_dims(height, 1) * landmarks[:, 5:10]
+
+    bboxes = box.translate_bbox(bboxes, regression)
+    pick = box.nms(bboxes, 0.5)
+
+    bboxes = bboxes[pick]
+
+    # Convert the bounding boxes to a square
+    bboxes = box.convert_to_square(bboxes)
+    # Round the bounding boxes to an integer.
+    bboxes[:, :4] = np.round(bboxes[:, :4])
+
+    return {
+        'bboxes': bboxes,
+        'landmarks': landmarks[pick]
+    }
+
+
 bboxes = stage1(0.1)
 
-stage2(image, bboxes, 0.1)
+bboxes = stage2(image, bboxes, 0.1)
+
+print(stage3(image, bboxes, 0.1))
